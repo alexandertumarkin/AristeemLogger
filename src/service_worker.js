@@ -1,118 +1,148 @@
 ﻿// src/service_worker.js (ES module, MV3)
 
+// ===== Constants & defaults =====
 const DEFAULT_PERIOD_MINUTES = 2;
 const MIN_ALLOWED = 1;
 const MAX_ALLOWED = 10;
 
 const EXPORT_ALARM = 'aristeem_export_alarm';
-const buffer = [];
-const MAX_BUFFER = 50_000;
 
-// ---- Diagnostics (удобно при отладке)
+// In-memory buffer (можно заменить на storage при желании)
+const buffer = [];
+const MAX_BUFFER = 50_000; // защитный предел на случай шторма событий
+
+// ===== Diagnostics =====
 console.log('[sw] loaded');
 
-// === Алгоритм планирования будильника ===
+// ===== Alarm scheduling =====
 function clampInterval(mins) {
-  if (!Number.isFinite(mins)) return DEFAULT_PERIOD_MINUTES;
-  mins = Math.round(mins);
-  if (mins < MIN_ALLOWED) mins = MIN_ALLOWED;
-  if (mins > MAX_ALLOWED) mins = MAX_ALLOWED;
-  return mins;
+  const n = Number(mins);
+  if (!Number.isFinite(n)) return DEFAULT_PERIOD_MINUTES;
+  return Math.max(MIN_ALLOWED, Math.min(MAX_ALLOWED, n));
 }
 
-function scheduleAlarm(periodMinutes) {
-  const p = clampInterval(periodMinutes);
-  chrome.alarms.clear(EXPORT_ALARM, () => {
-    chrome.alarms.create(EXPORT_ALARM, { periodInMinutes: p });
-    console.log(`[sw] alarm scheduled: every ${p} min`);
-  });
+async function scheduleAlarm(periodMinutes) {
+  const pm = clampInterval(periodMinutes);
+  try {
+    await chrome.alarms.clear(EXPORT_ALARM);
+  } catch {}
+  await chrome.alarms.create(EXPORT_ALARM, { periodInMinutes: pm });
+  console.log('[sw] alarm scheduled:', EXPORT_ALARM, 'every', pm, 'min');
 }
 
-function scheduleFromStorage() {
-  chrome.storage.sync.get({ periodMinutes: DEFAULT_PERIOD_MINUTES }, ({ periodMinutes }) => {
-    scheduleAlarm(periodMinutes);
-  });
+async function scheduleFromStorage() {
+  const { periodMinutes = DEFAULT_PERIOD_MINUTES } = await chrome.storage.sync.get('periodMinutes');
+  await scheduleAlarm(periodMinutes);
 }
 
-// При установке/обновлении
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[sw] onInstalled');
-  scheduleFromStorage();
-});
-
-// При старте браузера
-chrome.runtime.onStartup.addListener(() => {
-  console.log('[sw] onStartup');
-  scheduleFromStorage();
-});
+// Восстановить расписание при старте/установке
+chrome.runtime.onInstalled.addListener(() => scheduleFromStorage().catch(console.error));
+chrome.runtime.onStartup.addListener(() => scheduleFromStorage().catch(console.error));
 
 // Реакция на изменение настроек (popup -> storage)
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes.periodMinutes) {
     const newVal = changes.periodMinutes.newValue;
     console.log('[sw] periodMinutes changed ->', newVal);
-    scheduleAlarm(newVal);
+    scheduleAlarm(newVal).catch(console.error);
   }
 });
 
-// === Приём событий от content.js и команды экспорта ===
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.__ARISTEEM__) {
-    buffer.push({ ...msg, receivedAt: Date.now() });
-    if (buffer.length > MAX_BUFFER) {
-      buffer.splice(0, buffer.length - MAX_BUFFER);
+// ===== Receive events & commands =====
+
+// 1) Лог-события от content.js (пересланные из inpage.js через window.postMessage)
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  try {
+    if (msg && msg.__ARISTEEM__ && msg.type) {
+      if (buffer.length < MAX_BUFFER) {
+        buffer.push({
+          ts: msg.ts || Date.now(),
+          type: msg.type,
+          payload: msg.payload,
+          // немного контекста источника
+          _ctx: {
+            tabId: sender?.tab?.id,
+            url: sender?.tab?.url
+          }
+        });
+      } else {
+        // защитный отсекатель
+        console.warn('[sw] buffer overflow, dropping event:', msg.type);
+      }
+      return; // ничего не отвечаем
     }
-  }
-  if (msg?.__ARISTEEM_EXPORT_NOW__) {
-    console.log('[sw] export requested via message');
-    exportLogs();
+
+    // 2) Ручной экспорт (из popup.js)
+    if (msg && msg.__ARISTEEM_EXPORT_NOW__) {
+      console.log('[sw] export requested via message');
+      exportLogs().catch(console.error);
+      return;
+    }
+
+    // (опционально) привет от контент-скрипта
+    if (msg && msg.__ARISTEEM_HELLO__) {
+      console.log('[sw] content hello:', msg.href);
+      return;
+    }
+  } catch (e) {
+    console.error('[sw] onMessage error:', e);
   }
 });
 
-// === Экспорт по будильнику ===
+// 3) Таймер авто-экспорта
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === EXPORT_ALARM) {
+  if (alarm?.name === EXPORT_ALARM) {
     console.log('[sw] alarm fired -> export');
-    exportLogs();
+    exportLogs().catch(console.error);
   }
 });
 
-// === Экспорт по клику по иконке — опционально (если уберёшь popup и захочешь прямой клик)
-// chrome.action.onClicked.addListener(() => exportLogs());
-
-// === Сохранение JSON в downloads ===
-function exportLogs() {
-  console.log('[sw] exportLogs start, buffer length =', buffer.length);
-  if (!buffer.length) {
-    console.log('[sw] buffer empty -> skip export');
-    return;
-  }
-
-  const payload = {
-    version: '0.0.1',
-    exportedAt: new Date().toISOString(),
-    count: buffer.length,
-    events: buffer
-  };
-
-  const json = JSON.stringify(payload, null, 2);
-  const base64 = btoa(unescape(encodeURIComponent(json)));
-  const url = `data:application/json;base64,${base64}`;
-
-  const timestamp = new Date().toISOString().replaceAll(':', '-');
-  chrome.downloads.download({
-    url,
-    filename: `aristeem-logs/aristeem-log-${timestamp}.json`,
-    saveAs: false
-  }, (downloadId) => {
-    if (chrome.runtime.lastError) {
-      console.error('[sw] downloads.download error:', chrome.runtime.lastError);
-    } else {
-      console.log('[sw] download started, id =', downloadId);
+// ===== Export logic =====
+async function exportLogs() {
+  try {
+    const count = buffer.length;
+    console.log('[sw][export] buffer count =', count);
+    if (!count) {
+      console.warn('[sw][export] nothing to export (buffer empty)');
+      return;
     }
-  });
 
-  // очищаем буфер после экспорта (rolling log не нужен)
-  buffer.length = 0;
-  console.log('[sw] buffer cleared');
+    const payload = {
+      meta: { exportedAt: new Date().toISOString(), count },
+      events: buffer.slice()
+    };
+
+    const json = JSON.stringify(payload, null, 2);
+    // ВАЖНО: data:-URL; не используем URL.createObjectURL в SW
+    const dataUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(json);
+
+    const ts = new Date().toISOString().replace(/[:.]/g, '-');
+    chrome.downloads.download(
+      {
+        url: dataUrl,
+        filename: `aristeem-logs/aristeem-log-${ts}.json`,
+        saveAs: false,
+        conflictAction: 'uniquify'
+      },
+      (downloadId) => {
+        if (chrome.runtime.lastError) {
+          console.error('[sw] downloads.download error:', chrome.runtime.lastError);
+        } else {
+          console.log('[sw] download started, id =', downloadId);
+        }
+      }
+    );
+
+    buffer.length = 0;
+    console.log('[sw] buffer cleared');
+  } catch (e) {
+    console.error('[sw][export] unexpected error:', e, chrome.runtime.lastError);
+  }
 }
+
+// ===== Optional: download change tracing (для отладки) =====
+chrome.downloads.onChanged.addListener((delta) => {
+  if (delta && (delta.state || delta.error || delta.filename)) {
+    console.log('[sw][dl]', JSON.stringify(delta));
+  }
+});

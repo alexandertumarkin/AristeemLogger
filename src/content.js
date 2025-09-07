@@ -44,3 +44,19 @@ window.addEventListener('message', (event) => {
 try {
   chrome.runtime.sendMessage({ __ARISTEEM_HELLO__: true, href: location.href });
 } catch (_) {}
+
+
+// 1) Получаем сохранённый флаг и отправляем его в страницу при старте
+chrome.storage.sync.get(['advanced', 'statsPeriodSec'], ({ advanced = false, statsPeriodSec = 3 } = {}) => {
+  window.postMessage({ __ARISTEEM_CONFIG__: true, config: { advanced, statsPeriodSec } }, '*');
+});
+
+
+// 2) Мост для сообщений из popup (оставляем как раньше)
+// content.js
+// content.js
+chrome.runtime.onMessage.addListener((msg, _sender, _reply) => {
+  if (msg && msg.__ARISTEEM_SET_CONFIG__ && msg.config) {
+    window.postMessage({ __ARISTEEM_CONFIG__: true, config: msg.config }, '*');
+  }
+});
