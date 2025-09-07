@@ -1,0 +1,128 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Privacy Policy — Aristeem WebRTC/WS Logger (Chrome Extension)</title>
+  <style>
+    :root { --fg:#111; --muted:#666; --link:#0b65c2; --bg:#fff; }
+    html,body { background:var(--bg); color:var(--fg); margin:0; }
+    body { font: 16px/1.55 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif; }
+    .wrap { max-width: 860px; padding: 28px 20px 56px; margin: 0 auto; }
+    h1 { font-size: 1.85rem; margin: 0 0 10px; }
+    h2 { font-size: 1.25rem; margin: 28px 0 10px; }
+    p, li { margin: 10px 0; }
+    .meta { color: var(--muted); font-size: 0.95rem; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code { background: #f4f4f4; padding: 0 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Privacy Policy — Aristeem WebRTC/WS Logger</h1>
+    <p class="meta">
+      This policy describes how the Chrome extension “Aristeem WebRTC/WS Logger” (“Extension”, “we”, “our”) processes information.
+      <br><strong>Last updated:</strong> September 7, 2025 · <strong>Document version:</strong> 1.0
+    </p>
+
+    <h2>Who we are</h2>
+    <p>
+      Aristeem WebRTC/WS Logger is a developer tool used for diagnostics and quality monitoring within Aristeem projects.
+      Contact: <a href="mailto:alextumarkin@gmail.com">alextumarkin@gmail.com</a>.
+    </p>
+
+    <h2>What this Extension does</h2>
+    <p>
+      The Extension observes technical events from the active page where it is allowed to run and produces JSON log files for debugging.
+      It does <strong>not</strong> send data to any remote server. Logs are exported locally to the user’s <em>Downloads</em> folder
+      either on a schedule or when the user clicks “Export”.
+    </p>
+
+    <h2>Data we process</h2>
+    <p>The Extension collects <em>technical</em> telemetry from the page where it is enabled. Depending on the page activity, this may include:</p>
+    <ul>
+      <li>
+        <strong>WebRTC events:</strong> creation of <code>RTCPeerConnection</code>, session descriptions (SDP offer/answer),
+        calls to <code>setLocalDescription</code> / <code>setRemoteDescription</code>, ICE candidates, connection state changes,
+        and selective <code>getStats()</code> metrics (e.g., bytes sent/received, packets sent/received, jitter,
+        round-trip time (RTT), available bitrate, etc.).
+      </li>
+      <li>
+        <strong>WebSocket events:</strong> connection open/close/error, WebSocket URL, sent messages, and received messages.
+        For text messages we log up to ~1000 characters; binary messages are recorded as the marker <code>[binary]</code>.
+      </li>
+      <li>
+        <strong>Page context:</strong> current page URL, origin, and document title (to help identify the source of events).
+      </li>
+    </ul>
+    <p>
+      <strong>Note:</strong> WebRTC ICE candidates may contain your device’s IP addresses. WebSocket URLs or message
+      contents could include identifiers if the visited site sends them. The Extension does not attempt to parse, enrich,
+      or correlate such identifiers beyond basic logging.
+    </p>
+
+    <h2>Scope and limitations</h2>
+    <ul>
+      <li>The Extension runs only on sites you allow via its configuration (e.g., specific domains listed in the manifest).</li>
+      <li>It does not read arbitrary page content beyond the WebRTC/WebSocket data described above.</li>
+      <li>It does not access your browsing history, passwords, cookies, or form inputs.</li>
+    </ul>
+
+    <h2>Purpose of processing</h2>
+    <p>
+      Solely to support diagnostics, troubleshooting, and service-quality analysis for Aristeem-related development and support.
+      We do <strong>not</strong> use the data for advertising, profiling, or selling to third parties.
+    </p>
+
+    <h2>Storage and retention</h2>
+    <ul>
+      <li>Events are buffered in the browser’s memory by the Extension’s background process.</li>
+      <li>On a timer (user-configurable, e.g., 1–10 minutes) or on user request, the buffer is exported as a JSON file to the local <em>Downloads</em> folder, then the in-memory buffer is cleared.</li>
+      <li>We do not transmit or back up logs to any server. You (or your organization) control the retention of the exported files.</li>
+    </ul>
+
+    <h2>Sharing and selling</h2>
+    <p>
+      We do not sell, rent, or trade collected data. We do not disclose it to third parties. No third-party analytics libraries are used.
+    </p>
+
+    <h2>Browser permissions used</h2>
+    <ul>
+      <li><code>downloads</code> — to save JSON logs to your local Downloads folder.</li>
+      <li><code>alarms</code> — to schedule periodic exports.</li>
+      <li><code>storage</code> — to store user settings such as the export interval.</li>
+    </ul>
+
+    <h2>Security</h2>
+    <p>
+      Export happens locally on your device. Please treat the exported files as sensitive:
+      store them securely, share only with trusted recipients, and delete them when no longer needed.
+    </p>
+
+    <h2>Your choices &amp; controls</h2>
+    <ul>
+      <li>Use the popup to set the autosave interval (e.g., 1–10 minutes) and to trigger an immediate export.</li>
+      <li>Delete exported JSON files at any time from your Downloads folder.</li>
+      <li>Disable or remove the Extension via <code>chrome://extensions</code> if you no longer wish to use it.</li>
+    </ul>
+
+    <h2>Children’s privacy</h2>
+    <p>
+      This Extension is a developer tool and is not directed to children. It should be used by adults in a professional context.
+    </p>
+
+    <h2>Changes to this policy</h2>
+    <p>
+      We may update this policy if the Extension’s functionality changes (for example, if a future version introduces optional
+      remote upload of logs). We will revise the “Last updated” date above. Material changes will be documented in the project
+      repository and/or release notes.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about this policy? Email us at <a href="mailto:alextumarkin@gmail.com">alextumarkin@gmail.com</a>.
+    </p>
+  </main>
+</body>
+</html>
