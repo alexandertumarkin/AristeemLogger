@@ -1,0 +1,32 @@
+﻿<!doctype html>
+<html>
+  <meta charset="utf-8" />
+  <title>Aristeem Logger</title>
+  <style>
+    body { margin: 12px; font: 13px/1.4 system-ui, sans-serif; min-width: 240px; }
+    h3 { margin: 0 0 8px; }
+    .row { margin: 10px 0; }
+    label { display: block; margin-bottom: 6px; }
+    input[type="number"] { width: 100%; box-sizing: border-box; padding: 6px; }
+    button { width: 100%; padding: 8px; margin-top: 8px; }
+    .muted { color: #666; font-size: 12px; }
+    .ok { color: #0a0; }
+    .err { color: #a00; }
+  </style>
+
+  <h3>Aristeem Logger</h3>
+
+  <div class="row">
+    <button id="export">Export logs now</button>
+  </div>
+
+  <div class="row">
+    <label for="interval">Auto-save interval (minutes, 1–10)</label>
+    <input id="interval" type="number" min="1" max="10" step="1" />
+    <button id="save">Save interval</button>
+    <div id="status" class="muted"></div>
+  </div>
+
+  <!-- Важно: внешний модульный скрипт (без inline) -->
+  <script type="module" src="./popup.js"></script>
+</html>

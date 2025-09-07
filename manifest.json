@@ -1,0 +1,33 @@
+﻿{
+  "manifest_version": 3,
+  "name": "Aristeem WebRTC/WS logger",
+  "version": "0.0.1",
+  "description": "This extension gathers Aristeem WebRTC getStats and WebSocket events and saves JSON.",
+  "action": {
+    "default_title": "Aristeem Logger",
+    "default_popup": "popup/popup.html"
+  },
+  "icons": {
+     "16": "assets/icon16.png",
+     "48": "assets/icon48.png",
+     "128": "assets/icon128.png"
+   },
+  "permissions": ["downloads", "alarms", "storage"],
+  "host_permissions": [
+    "*://aristeem.dev/*",
+    "*://*.aristeem.com/*"
+  ],
+  "background": {
+    "service_worker": "src/service_worker.js",
+    "type": "module"
+  },
+  "content_scripts": [{
+    "matches": ["*://aristeem.dev/*", "*://*.aristeem.com/*"],
+    "js": ["src/content.js"],
+    "run_at": "document_start"
+  }],
+  "web_accessible_resources": [{
+    "resources": ["src/inpage.js"],
+    "matches": ["*://aristeem.dev/*", "*://*.aristeem.com/*"]
+  }]
+}
